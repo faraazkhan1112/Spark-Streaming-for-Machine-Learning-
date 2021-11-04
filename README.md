@@ -1,1 +1,1 @@
-# Spark-Streaming-for-Machine-Learning
+# Spark Streaming for Machine Learning
