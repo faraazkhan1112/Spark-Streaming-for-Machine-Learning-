@@ -1,1 +1,1 @@
-# Spark Streaming for Machine Learning
+# Enron Email Spam Detection using Spark MLlib
