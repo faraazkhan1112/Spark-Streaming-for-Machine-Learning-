@@ -3,7 +3,7 @@ from pyspark import SparkConf, SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.sql import Row, SQLContext, SparkSession
 from pyspark.sql.functions import *
-from pyspark.sql.types import *
+from pyspark.sql.types import * 
 from pyspark.ml.feature import Tokenizer,StopWordsRemover, CountVectorizer,IDF,StringIndexer, HashingTF, NGram, Word2Vec
 from pyspark.ml.feature import VectorAssembler, MinMaxScaler
 from pyspark.ml.linalg import Vector
@@ -26,68 +26,68 @@ def json_data(rdd_data):
 def list_to_tuple(list1):
   return tuple(list1)
 
-def log_write(score, acc, pr, re, fscore, path):
-#FUNCTION TO WRITE THE METRICS CALCULATED IN A CSV FILE NAMED AFTER THE MODEL USED
-fields = ['Score', 'Accuracy', 'Precision', 'Recall', 'F1 Score']
-row = [score, acc, pr, re, fscore]
-filename = path[44:47]+".csv"
-with open(filename, 'a') as csvfile:
-csvwriter = csv.writer(csvfile)
-csvwriter.writerow(row)
-       
+def writetocsv(score, acc, pr, re, fscore, path):
+	#FUNCTION TO WRITE THE METRICS CALCULATED IN A CSV FILE NAMED AFTER THE MODEL USED
+	fields = ['Score', 'Accuracy', 'Precision', 'Recall', 'F1 Score']
+	row = [score, acc, pr, re, fscore]
+	filename = path[44:47]+".csv"
+	with open(filename, 'a') as csvfile:
+		csvwriter = csv.writer(csvfile)
+		csvwriter.writerow(row)
+        
 def preprocess(l,sc):
-spark = SparkSession(sc)
-df = spark.createDataFrame(l,schema = schema1)
+	spark = SparkSession(sc)
+	df = spark.createDataFrame(l,schema = schema1)
+	
+	#PREPROCESSING STARTS
+	#MESSAGE COLUMN
+	tokenizer = Tokenizer(inputCol="Message", outputCol="token_text")
+	stopwords = StopWordsRemover().getStopWords() + ['-']
+	stopremove = StopWordsRemover().setStopWords(stopwords).setInputCol('token_text').setOutputCol('stop_tokens')
+	bigram = NGram().setN(2).setInputCol('stop_tokens').setOutputCol('bigrams')
+	word2Vec = Word2Vec(vectorSize=5, minCount=0, inputCol="bigrams", outputCol="feature2")
+	mmscaler = MinMaxScaler(inputCol='feature2',outputCol='scaled_feature2')
 
-#PREPROCESSING STARTS
-#MESSAGE COLUMN
-tokenizer = Tokenizer(inputCol="Message", outputCol="token_text")
-stopwords = StopWordsRemover().getStopWords() + ['-']
-stopremove = StopWordsRemover().setStopWords(stopwords).setInputCol('token_text').setOutputCol('stop_tokens')
-bigram = NGram().setN(2).setInputCol('stop_tokens').setOutputCol('bigrams')
-word2Vec = Word2Vec(vectorSize=5, minCount=0, inputCol="bigrams", outputCol="feature2")
-mmscaler = MinMaxScaler(inputCol='feature2',outputCol='scaled_feature2')
+	#SUBJECT COLUMN 
+	tokenizer1 = Tokenizer(inputCol="Subject", outputCol="token_text1")
+	stopwords1 = StopWordsRemover().getStopWords() + ['-']
+	stopremove1 = StopWordsRemover().setStopWords(stopwords).setInputCol('token_text1').setOutputCol('stop_tokens1')
+	bigram1 = NGram().setN(2).setInputCol('stop_tokens1').setOutputCol('bigrams1')
+	word2Vec1 = Word2Vec(vectorSize=5, minCount=0, inputCol="bigrams1", outputCol="feature1")
+	mmscaler1 = MinMaxScaler(inputCol='feature1',outputCol='scaled_feature1')
 
-#SUBJECT COLUMN
-tokenizer1 = Tokenizer(inputCol="Subject", outputCol="token_text1")
-stopwords1 = StopWordsRemover().getStopWords() + ['-']
-stopremove1 = StopWordsRemover().setStopWords(stopwords).setInputCol('token_text1').setOutputCol('stop_tokens1')
-bigram1 = NGram().setN(2).setInputCol('stop_tokens1').setOutputCol('bigrams1')
-word2Vec1 = Word2Vec(vectorSize=5, minCount=0, inputCol="bigrams1", outputCol="feature1")
-mmscaler1 = MinMaxScaler(inputCol='feature1',outputCol='scaled_feature1')
+	#ht = HashingTF(inputCol="bigrams", outputCol="ht",numFeatures=8000)
+	#CONVERTING THE SPAM/HAM COLUMN TO 0 OR 1
+	ham_spam_to_num = StringIndexer(inputCol='Spam_Ham',outputCol='label')
+	print("PREPROCESSING STARTS")
 
-#ht = HashingTF(inputCol="bigrams", outputCol="ht",numFeatures=8000)
-#CONVERTING THE SPAM/HAM COLUMN TO 0 OR 1
-ham_spam_to_num = StringIndexer(inputCol='Spam_Ham',outputCol='label')
-print("PREPROCESSING STARTS")
+	# APPLYING THE PREPROCESSED PIPELINE MODEL ON THE BATCHES RECIEVED
+	data_prep_pipe = Pipeline(stages=[ham_spam_to_num,tokenizer,stopremove,bigram,word2Vec,mmscaler,tokenizer1,stopremove1,bigram1,word2Vec1,mmscaler1])
+	cleaner = data_prep_pipe.fit(df)
+	clean_data = cleaner.transform(df)
+	clean_data = clean_data.select(['label','stop_tokens','bigrams','feature1','feature2','scaled_feature2','scaled_feature1'])
+	print("PREPROCESSING COMPLETED")
 
-# APPLYING THE PREPROCESSED PIPELINE MODEL ON THE BATCHES RECIEVED
-data_prep_pipe = Pipeline(stages=[ham_spam_to_num,tokenizer,stopremove,bigram,word2Vec,mmscaler,tokenizer1,stopremove1,bigram1,word2Vec1,mmscaler1])
-cleaner = data_prep_pipe.fit(df)
-clean_data = cleaner.transform(df)
-clean_data = clean_data.select(['label','stop_tokens','bigrams','feature1','feature2','scaled_feature2','scaled_feature1'])
-print("PREPROCESSING COMPLETED")
-
-#SPLITTING INTO TRAINING AND TESTING DATA (0.8,0.2)
-(training,testing) = clean_data.randomSplit([0.8,0.2])
-clean_data.show()
-
-#CONVERTING TRAINING DATA INTO NUMPY ARRAYS
-X_train = np.array(training.select(['scaled_feature1','scaled_feature2']).collect())
-Y_train = np.array(training.select('label').collect())
-print("TEST DATA SPLIT INTO TRAIN AND TEST (0.8,0.2)")
-
-#RESHAPING THE DATA
-nsamples, nx, ny = X_train.shape
-X_train = X_train.reshape((nsamples,nx*ny))
-
-#CONVERTING TESTING DATA INTO NUMPY ARRAYS
-X_test = np.array(testing.select(['scaled_feature1','scaled_feature2']).collect())
-Y_test = np.array(testing.select('label').collect())
-nsamples, nx, ny = X_test.shape
-X_test = X_test.reshape((nsamples,nx*ny))
-
-return (X_test,Y_test,X_train,Y_train)
+	#SPLITTING INTO TRAINING AND TESTING DATA (0.8,0.2)
+	(training,testing) = clean_data.randomSplit([0.8,0.2])
+	clean_data.show()
+	
+	#CONVERTING TRAINING DATA INTO NUMPY ARRAYS
+	X_train = np.array(training.select(['scaled_feature1','scaled_feature2']).collect())
+	Y_train = np.array(training.select('label').collect())
+	print("TEST DATA SPLIT INTO TRAIN AND TEST (0.8,0.2)")
+	
+	#RESHAPING THE DATA
+	nsamples, nx, ny = X_train.shape
+	X_train = X_train.reshape((nsamples,nx*ny))
+	
+	#CONVERTING TESTING DATA INTO NUMPY ARRAYS
+	X_test = np.array(testing.select(['scaled_feature1','scaled_feature2']).collect())
+	Y_test = np.array(testing.select('label').collect())
+	nsamples, nx, ny = X_test.shape
+	X_test = X_test.reshape((nsamples,nx*ny))
+	
+	return (X_test,Y_test,X_train,Y_train)
 
 def calculatemetrics(Y_test,pred):
     print(pred)
@@ -103,47 +103,47 @@ def calculatemetrics(Y_test,pred):
     print("F1 Score: ",fscore)
     return(score, acc, pr, re, fscore)
 
-#MULTINOMIAL NAIVE BAYES
+#MULTINOMIAL NAIVE BAYES 
 def mnb1(X_test,Y_test,X_train,Y_train,sc):
-#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
-try:
-print("INCREMENTAL LEARNING STARTED")
-classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
-classifier1_load.partial_fit(X_train,Y_train.ravel())
-pred = classifier1_load.predict(X_test)
-score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB')
-joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
-except Exception as e:
-print("FIRST TRAIN OF MNB MODEL")
-classifier1 = MultinomialNB()
-classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
-pred = classifier1.predict(X_test)
-score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB')
-joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
-   
+	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
+	try:
+		print("INCREMENTAL LEARNING STARTED")
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
+		classifier1_load.partial_fit(X_train,Y_train.ravel())
+		pred = classifier1_load.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		writetocsv(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
+	except Exception as e:
+		print("FIRST TRAIN OF MNB MODEL")
+		classifier1 = MultinomialNB()
+		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
+		pred = classifier1.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		writetocsv(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
+    
 def process1(rdd,count):
-if not rdd.isEmpty():
-#PARSING THE JSON FILE AND EXTRACTING ITS ROWS
-rows1 = []
-rdd_data = rdd.collect()
-data1 = json_data(rdd_data)
-for i in data1.keys():
-x = list()
-x.append(len(str(data1[i]['feature1'])))
-x.append(str(data1[i]['feature0']).strip(' '))
-x.append(str(data1[i]['feature1']).strip(' '))
-x.append(str(data1[i]['feature2']).strip(' '))
-   
-rows1.append(list_to_tuple(x))
-print("RECIEVED BATCH OF LENGTH ", len(rows1))
-#print(rows1)
-rdd2 = sc.parallelize(rows1)
-X_test,Y_test,X_train,Y_train = preprocess(rdd2,sc)
-mnb1(X_test,Y_test,X_train,Y_train,sc)
-#SVGD, BERNOULLI AND MULTINOMIAL CLASSIFIERS TO BE USED
-print("COMPLETED \n \n")
+	if not rdd.isEmpty():
+	#PARSING THE JSON FILE AND EXTRACTING ITS ROWS
+		rows1 = []
+		rdd_data = rdd.collect()
+		data1 = json_data(rdd_data)
+		for i in data1.keys():
+			x = list()
+			x.append(len(str(data1[i]['feature1'])))
+			x.append(str(data1[i]['feature0']).strip(' '))
+			x.append(str(data1[i]['feature1']).strip(' '))
+			x.append(str(data1[i]['feature2']).strip(' '))
+    
+			rows1.append(list_to_tuple(x))
+		print("RECIEVED BATCH OF LENGTH ", len(rows1))
+		#print(rows1)
+		rdd2 = sc.parallelize(rows1)
+		X_test,Y_test,X_train,Y_train = preprocess(rdd2,sc)
+		mnb1(X_test,Y_test,X_train,Y_train,sc)
+		#SVGD, BERNOULLI AND MULTINOMIAL CLASSIFIERS TO BE USED
+		print("COMPLETED \n \n")
 
 conf = SparkConf()
 conf.setAppName("BD")
