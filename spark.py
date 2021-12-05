@@ -11,7 +11,8 @@ from pyspark.ml import Pipeline
 from pyspark.ml.pipeline import PipelineModel
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB
 from sklearn.linear_model import SGDClassifier
-from sklearn.metrics import r2_score,accuracy_score, precision_score, recall_score
+from sklearn.metrics import r2_score,accuracy_score, precision_score, recall_score, adjusted_rand_score
+from sklearn.cluster import MiniBatchKMeans
 import numpy as np
 import csv
 import joblib
@@ -26,11 +27,20 @@ def json_data(rdd_data):
 def list_to_tuple(list1):
   return tuple(list1)
 
-def writetocsv(score, acc, pr, re, fscore, path):
+def log_write(score, acc, pr, re, fscore, path):
 	#FUNCTION TO WRITE THE METRICS CALCULATED IN A CSV FILE NAMED AFTER THE MODEL USED
 	fields = ['Score', 'Accuracy', 'Precision', 'Recall', 'F1 Score']
 	row = [score, acc, pr, re, fscore]
-	filename = path[44:47]+".csv"
+	filename = path[44:48]+".csv"
+	with open(filename, 'a') as csvfile:
+		csvwriter = csv.writer(csvfile)
+		csvwriter.writerow(row)
+		
+def log_write1(testacc, path):
+	#FUNCTION TO WRITE THE PERFORMANCE OF THE ESTIMATOR IN A CSV FILE NAMED AFTER THE MODEL USED
+	fields = ['TestAccuracy']
+	row = [testacc]
+	filename = path[44:48]+".csv"
 	with open(filename, 'a') as csvfile:
 		csvwriter = csv.writer(csvfile)
 		csvwriter.writerow(row)
@@ -84,6 +94,8 @@ def preprocess(l,sc):
 	#CONVERTING TESTING DATA INTO NUMPY ARRAYS
 	X_test = np.array(testing.select(['scaled_feature1','scaled_feature2']).collect())
 	Y_test = np.array(testing.select('label').collect())
+	
+	#RESHAPING THE DATA
 	nsamples, nx, ny = X_test.shape
 	X_test = X_test.reshape((nsamples,nx*ny))
 	
@@ -103,25 +115,91 @@ def calculatemetrics(Y_test,pred):
     print("F1 Score: ",fscore)
     return(score, acc, pr, re, fscore)
 
+def calculatetestacc(Y_test,pred):
+    print(pred)
+    testacc = accuracy_score(Y_test.reshape(-1), pred)
+    print("Test Accuracy: ",testacc)
+    return(testacc)
+
+#BERNOULLI NAIVE BAYES 
+def bnb1(X_test,Y_test,X_train,Y_train,sc):
+	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
+	try:
+		print("INCREMENTAL LEARNING STARTED (BERNOULLI NAIVE BAYES)")
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
+		classifier1_load.partial_fit(X_train,Y_train.ravel())
+		pred = classifier1_load.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
+	except Exception as e:
+		print("FIRST TRAIN OF MNB MODEL")
+		classifier1 = BernoulliNB()
+		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
+		pred = classifier1.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
+		
 #MULTINOMIAL NAIVE BAYES 
 def mnb1(X_test,Y_test,X_train,Y_train,sc):
 	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
 	try:
-		print("INCREMENTAL LEARNING STARTED")
-		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
+		print("INCREMENTAL LEARNING STARTED (MULTINOMIAL NAIVE BAYES)")
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/mNB1.pkl')
 		classifier1_load.partial_fit(X_train,Y_train.ravel())
 		pred = classifier1_load.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		writetocsv(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB')
-		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1.pkl')
 	except Exception as e:
 		print("FIRST TRAIN OF MNB MODEL")
 		classifier1 = MultinomialNB()
 		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
 		pred = classifier1.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		writetocsv(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB')
-		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1.pkl')
+		
+#SGD
+def sgd1(X_test,Y_test,X_train,Y_train,sc):
+	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
+	try:
+		print("INCREMENTAL LEARNING STARTED (SGD)")
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/sgd1.pkl')
+		classifier1_load.partial_fit(X_train,Y_train.ravel())
+		pred = classifier1_load.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1.pkl')
+	except Exception as e:
+		print("FIRST TRAIN OF MNB MODEL")
+		classifier1 = SGDClassifier()
+		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
+		pred = classifier1.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1.pkl')
+		
+#CLUSTERING
+def clustering1(X_test,Y_test,X_train,Y_train,sc):
+	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
+	try:
+		print("INCREMENTAL LEARNING STARTED (MinBatchKMeans)")
+		cls1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/cls2.pkl')
+		cls1_load.fit(X_train, Y_train.ravel())
+		pred = cls1_load.predict(X_test)
+		testacc = calculatetestacc(Y_test,pred)
+		log_write1(testacc, '/home/pes1ug19cs153/Desktop/BDProject/build/cls2')
+		joblib.dump(cls1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/cls2.pkl')
+	except Exception as e:
+		print("FIRST TRAIN OF CLUSTERING MODEL")
+		cls1 = MiniBatchKMeans(n_clusters = 2)
+		cls1.fit(X_train,Y_train.ravel())
+		pred = cls1.predict(X_test)
+		testacc = calculatetestacc(Y_test,pred)
+		log_write1(testacc, '/home/pes1ug19cs153/Desktop/BDProject/build/cls2')
+		joblib.dump(cls1, '/home/pes1ug19cs153/Desktop/BDProject/build/cls2.pkl')
     
 def process1(rdd,count):
 	if not rdd.isEmpty():
@@ -141,8 +219,10 @@ def process1(rdd,count):
 		#print(rows1)
 		rdd2 = sc.parallelize(rows1)
 		X_test,Y_test,X_train,Y_train = preprocess(rdd2,sc)
+		#bnb1(X_test,Y_test,X_train,Y_train,sc)
 		mnb1(X_test,Y_test,X_train,Y_train,sc)
-		#SVGD, BERNOULLI AND MULTINOMIAL CLASSIFIERS TO BE USED
+		#sgd1(X_test,Y_test,X_train,Y_train,sc)
+		#clustering1(X_test,Y_test,X_train,Y_train,sc)
 		print("COMPLETED \n \n")
 
 conf = SparkConf()
