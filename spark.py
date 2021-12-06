@@ -10,7 +10,7 @@ from pyspark.ml.linalg import Vector
 from pyspark.ml import Pipeline
 from pyspark.ml.pipeline import PipelineModel
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB
-from sklearn.linear_model import SGDClassifier
+from sklearn.linear_model import SGDClassifier, PassiveAggressiveClassifier
 from sklearn.metrics import r2_score,accuracy_score, precision_score, recall_score, confusion_matrix
 from sklearn.cluster import MiniBatchKMeans
 import numpy as np
@@ -141,25 +141,25 @@ def bnb1(X_test,Y_test,X_train,Y_train,sc):
 		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1')
 		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
 		
-#MULTINOMIAL NAIVE BAYES 
-def mnb1(X_test,Y_test,X_train,Y_train,sc):
+#PASSIVE AGGRESSIVE CLASSIFIER (LINEAR) 
+def pac1(X_test,Y_test,X_train,Y_train,sc):
 	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
 	try:
-		print("INCREMENTAL LEARNING STARTED (MULTINOMIAL NAIVE BAYES)")
-		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/mNB1.pkl')
+		print("INCREMENTAL LEARNING STARTED (PASSIVE AGGRESSIVE CLASSIFIER)")
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/pacv.pkl')
 		classifier1_load.partial_fit(X_train,Y_train.ravel())
 		pred = classifier1_load.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1')
-		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/pacv')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/pacv.pkl')
 	except Exception as e:
-		print("FIRST TRAIN OF MNB MODEL")
-		classifier1 = MultinomialNB()
+		print("FIRST TRAIN OF PAC MODEL")
+		classifier1 = PassiveAggressiveClassifier()
 		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
 		pred = classifier1.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1')
-		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/mNB1.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/pacv')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/pacv.pkl')
 		
 #SGD
 def sgd1(X_test,Y_test,X_train,Y_train,sc):
@@ -220,7 +220,7 @@ def process1(rdd,count):
 		rdd2 = sc.parallelize(rows1)
 		X_test,Y_test,X_train,Y_train = preprocess(rdd2,sc)
 		bnb1(X_test,Y_test,X_train,Y_train,sc)
-		mnb1(X_test,Y_test,X_train,Y_train,sc)
+		pac1(X_test,Y_test,X_train,Y_train,sc)
 		sgd1(X_test,Y_test,X_train,Y_train,sc)
 		clustering1(X_test,Y_test,X_train,Y_train,sc)
 		print("COMPLETED \n \n")
