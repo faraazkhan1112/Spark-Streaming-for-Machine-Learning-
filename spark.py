@@ -126,20 +126,20 @@ def bnb1(X_test,Y_test,X_train,Y_train,sc):
 	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
 	try:
 		print("INCREMENTAL LEARNING STARTED (BERNOULLI NAIVE BAYES)")
-		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/bNBv.pkl')
 		classifier1_load.partial_fit(X_train,Y_train.ravel())
 		pred = classifier1_load.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1')
-		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNBv')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/bNBv.pkl')
 	except Exception as e:
 		print("FIRST TRAIN OF BNB MODEL")
 		classifier1 = BernoulliNB()
 		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
 		pred = classifier1.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1')
-		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNBv')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/bNBv.pkl')
 		
 #PASSIVE AGGRESSIVE CLASSIFIER (LINEAR) 
 def pac1(X_test,Y_test,X_train,Y_train,sc):
@@ -161,25 +161,45 @@ def pac1(X_test,Y_test,X_train,Y_train,sc):
 		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/pacv')
 		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/pacv.pkl')
 		
+#MULTINOMIAL NAIVE BAYES 
+def mnb1(X_test,Y_test,X_train,Y_train,sc):
+	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
+	try:
+		print("INCREMENTAL LEARNING STARTED (MULTINOMIAL NAIVE BAYES)")
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/mNBv.pkl')
+		classifier1_load.partial_fit(X_train,Y_train.ravel())
+		pred = classifier1_load.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNBv')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/mNBv.pkl')
+	except Exception as e:
+		print("FIRST TRAIN OF MNB MODEL")
+		classifier1 = PassiveAggressiveClassifier()
+		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
+		pred = classifier1.predict(X_test)
+		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/mNBv')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/mNBv.pkl')
+		
 #SGD
 def sgd1(X_test,Y_test,X_train,Y_train,sc):
 	#X_test,Y_test,X_train,Y_train = preprocess(l,sc)
 	try:
 		print("INCREMENTAL LEARNING STARTED (SGD)")
-		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/sgd1.pkl')
+		classifier1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/sgdv.pkl')
 		classifier1_load.partial_fit(X_train,Y_train.ravel())
 		pred = classifier1_load.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1')
-		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/sgdv')
+		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/sgdv.pkl')
 	except Exception as e:
 		print("FIRST TRAIN OF SGD MODEL")
 		classifier1 = SGDClassifier()
 		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
 		pred = classifier1.predict(X_test)
 		score, acc, pr, re, fscore = calculatemetrics(Y_test,pred)
-		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1')
-		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1.pkl')
+		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/sgdv')
+		joblib.dump(classifier1, '/home/pes1ug19cs153/Desktop/BDProject/build/sgdv.pkl')
 		
 #CLUSTERING
 def clustering1(X_test,Y_test,X_train,Y_train,sc):
@@ -220,6 +240,7 @@ def process1(rdd,count):
 		rdd2 = sc.parallelize(rows1)
 		X_test,Y_test,X_train,Y_train = preprocess(rdd2,sc)
 		bnb1(X_test,Y_test,X_train,Y_train,sc)
+		mnb1(X_test,Y_test,X_train,Y_train,sc)
 		pac1(X_test,Y_test,X_train,Y_train,sc)
 		sgd1(X_test,Y_test,X_train,Y_train,sc)
 		clustering1(X_test,Y_test,X_train,Y_train,sc)
