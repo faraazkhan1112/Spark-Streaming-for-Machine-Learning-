@@ -5,6 +5,7 @@ Team ID: BD_153_353_354_907
 1. Bernoulli NB
 2. Multinomial NB
 3. SGDClassifier
+4. MiniBatchKMeans
 
 Output Screenshots:
 ![***Output Screenshot 1***](ss1.png)
