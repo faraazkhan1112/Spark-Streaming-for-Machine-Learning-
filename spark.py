@@ -11,7 +11,7 @@ from pyspark.ml import Pipeline
 from pyspark.ml.pipeline import PipelineModel
 from sklearn.naive_bayes import BernoulliNB,MultinomialNB
 from sklearn.linear_model import SGDClassifier
-from sklearn.metrics import r2_score,accuracy_score, precision_score, recall_score, adjusted_rand_score
+from sklearn.metrics import r2_score,accuracy_score, precision_score, recall_score, confusion_matrix
 from sklearn.cluster import MiniBatchKMeans
 import numpy as np
 import csv
@@ -38,7 +38,7 @@ def log_write(score, acc, pr, re, fscore, path):
 		
 def log_write1(testacc, path):
 	#FUNCTION TO WRITE THE PERFORMANCE OF THE ESTIMATOR IN A CSV FILE NAMED AFTER THE MODEL USED
-	fields = ['TestAccuracy']
+	fields = ['ConfusionMatrix']
 	row = [testacc]
 	filename = path[44:48]+".csv"
 	with open(filename, 'a') as csvfile:
@@ -50,6 +50,7 @@ def preprocess(l,sc):
 	df = spark.createDataFrame(l,schema = schema1)
 	
 	#PREPROCESSING STARTS
+	
 	#MESSAGE COLUMN
 	tokenizer = Tokenizer(inputCol="Message", outputCol="token_text")
 	stopwords = StopWordsRemover().getStopWords() + ['-']
@@ -57,7 +58,6 @@ def preprocess(l,sc):
 	bigram = NGram().setN(2).setInputCol('stop_tokens').setOutputCol('bigrams')
 	word2Vec = Word2Vec(vectorSize=5, minCount=0, inputCol="bigrams", outputCol="feature2")
 	mmscaler = MinMaxScaler(inputCol='feature2',outputCol='scaled_feature2')
-
 	#SUBJECT COLUMN 
 	tokenizer1 = Tokenizer(inputCol="Subject", outputCol="token_text1")
 	stopwords1 = StopWordsRemover().getStopWords() + ['-']
@@ -117,8 +117,8 @@ def calculatemetrics(Y_test,pred):
 
 def calculatetestacc(Y_test,pred):
     print(pred)
-    testacc = accuracy_score(Y_test.reshape(-1), pred)
-    print("Test Accuracy: ",testacc)
+    testacc = confusion_matrix(Y_test.reshape(-1), pred)
+    print("Confusion Matrix: ",testacc)
     return(testacc)
 
 #BERNOULLI NAIVE BAYES 
@@ -133,7 +133,7 @@ def bnb1(X_test,Y_test,X_train,Y_train,sc):
 		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1')
 		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/bNB1.pkl')
 	except Exception as e:
-		print("FIRST TRAIN OF MNB MODEL")
+		print("FIRST TRAIN OF BNB MODEL")
 		classifier1 = BernoulliNB()
 		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
 		pred = classifier1.predict(X_test)
@@ -173,7 +173,7 @@ def sgd1(X_test,Y_test,X_train,Y_train,sc):
 		log_write(score, acc, pr, re, fscore, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1')
 		joblib.dump(classifier1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/sgd1.pkl')
 	except Exception as e:
-		print("FIRST TRAIN OF MNB MODEL")
+		print("FIRST TRAIN OF SGD MODEL")
 		classifier1 = SGDClassifier()
 		classifier1.partial_fit(X_train,Y_train.ravel(),classes=np.unique(Y_train))
 		pred = classifier1.predict(X_test)
@@ -187,15 +187,15 @@ def clustering1(X_test,Y_test,X_train,Y_train,sc):
 	try:
 		print("INCREMENTAL LEARNING STARTED (MinBatchKMeans)")
 		cls1_load = joblib.load('/home/pes1ug19cs153/Desktop/BDProject/build/cls2.pkl')
-		cls1_load.fit(X_train, Y_train.ravel())
+		cls1_load.fit(X_train)
 		pred = cls1_load.predict(X_test)
 		testacc = calculatetestacc(Y_test,pred)
 		log_write1(testacc, '/home/pes1ug19cs153/Desktop/BDProject/build/cls2')
 		joblib.dump(cls1_load, '/home/pes1ug19cs153/Desktop/BDProject/build/cls2.pkl')
 	except Exception as e:
 		print("FIRST TRAIN OF CLUSTERING MODEL")
-		cls1 = MiniBatchKMeans(n_clusters = 2)
-		cls1.fit(X_train,Y_train.ravel())
+		cls1 = MiniBatchKMeans(n_clusters = 2, reassignment_ratio = 0, batch_size = 1000)
+		cls1.fit(X_train)
 		pred = cls1.predict(X_test)
 		testacc = calculatetestacc(Y_test,pred)
 		log_write1(testacc, '/home/pes1ug19cs153/Desktop/BDProject/build/cls2')
@@ -219,10 +219,10 @@ def process1(rdd,count):
 		#print(rows1)
 		rdd2 = sc.parallelize(rows1)
 		X_test,Y_test,X_train,Y_train = preprocess(rdd2,sc)
-		#bnb1(X_test,Y_test,X_train,Y_train,sc)
+		bnb1(X_test,Y_test,X_train,Y_train,sc)
 		mnb1(X_test,Y_test,X_train,Y_train,sc)
-		#sgd1(X_test,Y_test,X_train,Y_train,sc)
-		#clustering1(X_test,Y_test,X_train,Y_train,sc)
+		sgd1(X_test,Y_test,X_train,Y_train,sc)
+		clustering1(X_test,Y_test,X_train,Y_train,sc)
 		print("COMPLETED \n \n")
 
 conf = SparkConf()
