@@ -1,6 +1,10 @@
 # Enron Email Spam Detection using PySpark
-
 Team ID: BD_153_353_354_907
+## Dataset:
+- Each record consists of 3 features - the subject, the email content and the label 
+- Each email is one of 2 classes, spam or ham
+- 30k examples in train and 3k in test
+-----
 ## Models Used:
 1. Bernoulli NB *
 2. Multinomial NB
