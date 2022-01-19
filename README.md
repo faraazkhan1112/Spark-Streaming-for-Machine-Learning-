@@ -1,5 +1,5 @@
 ## Enron Email Spam Detection using PySpark
-*Final Project carried out as part of the Big Data course at PES University.*
+*Final Project carried out as part of the Big Data course (UE19CS322) at PES University.*
 ## Dataset:
 - Each record consists of 3 features - the subject, the email content and the label. 
 - Each email is one of 2 classes, spam or ham.
