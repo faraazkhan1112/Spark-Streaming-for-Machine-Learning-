@@ -4,7 +4,7 @@
 >***$ python3 stream.py -f spam -b batchsize*** \
 *Spam is the folder containing train and test datasets.* 
 
->***$ $SPARK_HOME/bin/spark-submit spark.py 2> log.txt*** \
+>***$ $SPARK_HOME/bin/spark-submit spark.py 2> log.txt*** 
 ## Dataset:
 - Each record consists of 3 features - the subject, the email content and the label. 
 - Each email is one of 2 classes, spam or ham.
