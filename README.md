@@ -6,7 +6,7 @@ Team ID: BD_153_353_354_907
 - 30k examples in train and 3k in test. 
 \
 **Link:** [Spam](https://drive.google.com/drive/folders/1mMPa21_FInHVNOaG5irmve42Su6dI77K)
------
+
 ## Models Used:
 1. Bernoulli NB *
 2. Multinomial NB
