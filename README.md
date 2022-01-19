@@ -1,11 +1,11 @@
 ## Enron Email Spam Detection using PySpark
 *Final Project carried out as part of the Big Data course (UE19CS322) at PES University.* \
 ***Commands to run:*** \
-Server:
+***Server:***
 >***$ python3 stream.py -f spam -b batchsize*** \
 *Spam is the folder containing train and test datasets.* 
 
-Client:
+***Client:***
 >***$ $SPARK_HOME/bin/spark-submit spark.py 2> log.txt*** 
 ## Dataset:
 - Each record consists of 3 features - the subject, the email content and the label. 
