@@ -1,4 +1,5 @@
 # Enron Email Spam Detection using PySpark
+[![forthebadge](https://forthebadge.com/images/badges/made-with-python.svg)](https://forthebadge.com) \
 *Final Project carried out as part of the Big Data course (UE19CS322) at PES University.*
 
 ***Server:***
